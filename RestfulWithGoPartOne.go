@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
 	"log"
@@ -75,7 +74,6 @@ func usersHandler(db *sql.DB) func(*gin.Context) {
 
 func newUserHandler(stmt *sql.Stmt) func(*gin.Context) {
 	return func(c *gin.Context) {
-		var buffer bytes.Buffer
 		first_name := c.PostForm("first_name")
 		last_name := c.PostForm("last_name")
 		username := c.PostForm("username")
@@ -89,19 +87,14 @@ func newUserHandler(stmt *sql.Stmt) func(*gin.Context) {
 		}
 
 		//Appending strings via buffer , fast enough?
-		buffer.WriteString(first_name)
-		buffer.WriteString(" ")
-		buffer.WriteString(last_name)
-		name := buffer.String()
 		c.JSON(http.StatusOK, gin.H{
-			"message": fmt.Sprintf(" %s successfully created", name),
+			"message": fmt.Sprintf("%s %s successfully created", first_name, last_name),
 		})
 	}
 }
 
 func updateUserHandler(stmt *sql.Stmt) func(*gin.Context) {
 	return func(c *gin.Context) {
-		var buffer bytes.Buffer
 		id := c.Query("id")
 		first_name := c.PostForm("first_name")
 		last_name := c.PostForm("last_name")
@@ -115,13 +108,8 @@ func updateUserHandler(stmt *sql.Stmt) func(*gin.Context) {
 			return
 		}
 
-		// Fastest way to append strings
-		buffer.WriteString(first_name)
-		buffer.WriteString(" ")
-		buffer.WriteString(last_name)
-		name := buffer.String()
 		c.JSON(http.StatusOK, gin.H{
-			"message": fmt.Sprintf("Successfully updated to %s", name),
+			"message": fmt.Sprintf("Successfully updated to %s %s", first_name, last_name),
 		})
 	}
 }
