@@ -12,7 +12,7 @@ import (
 
 func main() {
 	//xxxx = mysql username
-    //yyyy = mysql password
+	//yyyy = mysql password
 	db, err := sql.Open("mysql", "root:saopayne@tcp(127.0.0.1:3306)/gosample")
 	if err != nil {
 		fmt.Print(err.Error())
@@ -32,11 +32,11 @@ func main() {
 	}
 	router := gin.Default()
 	// Add API handlers here
-	
+
 	// GET individual user detail which includes {id, lastname, firstname, username and email}
 	router.GET("/user/:id", func(c *gin.Context) {
 		var (
-			user User
+			user   User
 			result gin.H
 		)
 		id := c.Param("id")
@@ -57,8 +57,7 @@ func main() {
 		c.JSON(http.StatusOK, result)
 	})
 
-
-	// GET all users stored 
+	// GET all users stored
 	router.GET("/users", func(c *gin.Context) {
 		var (
 			user  User
@@ -81,7 +80,6 @@ func main() {
 			"count":  len(users),
 		})
 	})
-
 
 	// POST new user details
 	router.POST("/user", func(c *gin.Context) {
@@ -154,7 +152,6 @@ func main() {
 			"message": fmt.Sprintf("Successfully deleted user: %s", id),
 		})
 	})
-
 
 	router.Run(":3000")
 
