@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -148,13 +149,20 @@ func main() {
 	//yyyy = mysql password
 	db, err := sql.Open("mysql", "root:saopayne@tcp(127.0.0.1:3306)/gosample")
 	if err != nil {
-		fmt.Print(err.Error())
+		log.Fatalln(err)
 	}
 	defer db.Close()
+
 	// make sure connection is available
 	err = db.Ping()
 	if err != nil {
-		fmt.Print(err.Error())
+		log.Fatalln(err)
+	}
+
+	// Check if the connection is active
+	_, err = db.Exec("SELECT 1")
+	if err != nil {
+		log.Fatalln(err)
 	}
 
 	router := gin.Default()
@@ -176,5 +184,4 @@ func main() {
 	router.DELETE("/user", deleteUserHandler(db))
 
 	router.Run(":3000")
-
 }
