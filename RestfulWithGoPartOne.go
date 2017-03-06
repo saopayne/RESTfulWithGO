@@ -36,8 +36,7 @@ func userHandler(db *sql.DB) func(*gin.Context) {
 		}
 
 		result = gin.H{
-			"result": user,
-			"count":  1,
+			"user": user,
 		}
 		c.JSON(http.StatusOK, result)
 	}
@@ -68,8 +67,8 @@ func usersHandler(db *sql.DB) func(*gin.Context) {
 			}
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"result": users,
-			"count":  len(users),
+			"users": users,
+			"count": len(users),
 		})
 	}
 }
