@@ -10,38 +10,23 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func main() {
-	//xxxx = mysql username
-	//yyyy = mysql password
-	db, err := sql.Open("mysql", "root:saopayne@tcp(127.0.0.1:3306)/gosample")
-	if err != nil {
-		fmt.Print(err.Error())
-	}
-	defer db.Close()
-	// make sure connection is available
-	err = db.Ping()
-	if err != nil {
-		fmt.Print(err.Error())
-	}
-	type User struct {
-		Id         int
-		First_Name string
-		Last_Name  string
-		Username   string
-		Email      string
-	}
-	router := gin.Default()
-	// Add API handlers here
+type User struct {
+	Id         int
+	First_Name string
+	Last_Name  string
+	Username   string
+	Email      string
+}
 
-	// GET individual user detail which includes {id, lastname, firstname, username and email}
-	router.GET("/user/:id", func(c *gin.Context) {
+func userHandler(db *sql.DB) func(*gin.Context) {
+	return func(c *gin.Context) {
 		var (
 			user   User
 			result gin.H
 		)
 		id := c.Param("id")
 		row := db.QueryRow("select id, first_name, last_name, username, email from user where id = ?;", id)
-		err = row.Scan(&user.Id, &user.First_Name, &user.Last_Name, &user.Username, &user.Email)
+		err := row.Scan(&user.Id, &user.First_Name, &user.Last_Name, &user.Username, &user.Email)
 		if err != nil {
 			// If no results send null
 			result = gin.H{
@@ -55,10 +40,11 @@ func main() {
 			}
 		}
 		c.JSON(http.StatusOK, result)
-	})
+	}
+}
 
-	// GET all users stored
-	router.GET("/users", func(c *gin.Context) {
+func usersHandler(db *sql.DB) func(*gin.Context) {
+	return func(c *gin.Context) {
 		var (
 			user  User
 			users []User
@@ -79,10 +65,11 @@ func main() {
 			"result": users,
 			"count":  len(users),
 		})
-	})
+	}
+}
 
-	// POST new user details
-	router.POST("/user", func(c *gin.Context) {
+func newUserHandler(db *sql.DB) func(*gin.Context) {
+	return func(c *gin.Context) {
 		var buffer bytes.Buffer
 		first_name := c.PostForm("first_name")
 		last_name := c.PostForm("last_name")
@@ -107,10 +94,11 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{
 			"message": fmt.Sprintf(" %s successfully created", name),
 		})
-	})
+	}
+}
 
-	// PUT - update a user details
-	router.PUT("/user", func(c *gin.Context) {
+func updateUserHandler(db *sql.DB) func(*gin.Context) {
+	return func(c *gin.Context) {
 		var buffer bytes.Buffer
 		id := c.Query("id")
 		first_name := c.PostForm("first_name")
@@ -135,10 +123,11 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{
 			"message": fmt.Sprintf("Successfully updated to %s", name),
 		})
-	})
+	}
+}
 
-	// Delete resources
-	router.DELETE("/user", func(c *gin.Context) {
+func deleteUserHandler(db *sql.DB) func(*gin.Context) {
+	return func(c *gin.Context) {
 		id := c.Query("id")
 		stmt, err := db.Prepare("delete from user where id= ?;")
 		if err != nil {
@@ -151,7 +140,40 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{
 			"message": fmt.Sprintf("Successfully deleted user: %s", id),
 		})
-	})
+	}
+}
+
+func main() {
+	//xxxx = mysql username
+	//yyyy = mysql password
+	db, err := sql.Open("mysql", "root:saopayne@tcp(127.0.0.1:3306)/gosample")
+	if err != nil {
+		fmt.Print(err.Error())
+	}
+	defer db.Close()
+	// make sure connection is available
+	err = db.Ping()
+	if err != nil {
+		fmt.Print(err.Error())
+	}
+
+	router := gin.Default()
+	// Add API handlers here
+
+	// GET individual user detail which includes {id, lastname, firstname, username and email}
+	router.GET("/user/:id", userHandler(db))
+
+	// GET all users stored
+	router.GET("/users", usersHandler(db))
+
+	// POST new user details
+	router.POST("/user", newUserHandler(db))
+
+	// PUT - update a user details
+	router.PUT("/user", updateUserHandler(db))
+
+	// Delete resources
+	router.DELETE("/user", deleteUserHandler(db))
 
 	router.Run(":3000")
 
