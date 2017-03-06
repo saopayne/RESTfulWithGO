@@ -27,7 +27,7 @@ func userHandler(db *sql.DB) func(*gin.Context) {
 		)
 		id := c.Param("id")
 
-		row := db.QueryRow("select id, first_name, last_name, username, email from user where id = ?;", id)
+		row := db.QueryRow("select id, first_name, last_name, username, email from user where id = ?", id)
 		err := row.Scan(&user.Id, &user.First_Name, &user.Last_Name, &user.Username, &user.Email)
 		if err != nil {
 			log.Println(err)
@@ -49,7 +49,7 @@ func usersHandler(db *sql.DB) func(*gin.Context) {
 			users []User
 		)
 
-		rows, err := db.Query("select id, first_name, last_name, username, email from user;")
+		rows, err := db.Query("select id, first_name, last_name, username, email from user")
 		if err != nil {
 			log.Println(err)
 			c.AbortWithStatus(http.StatusInternalServerError)
@@ -73,7 +73,7 @@ func usersHandler(db *sql.DB) func(*gin.Context) {
 	}
 }
 
-func newUserHandler(db *sql.DB) func(*gin.Context) {
+func newUserHandler(stmt *sql.Stmt) func(*gin.Context) {
 	return func(c *gin.Context) {
 		var buffer bytes.Buffer
 		first_name := c.PostForm("first_name")
@@ -81,14 +81,7 @@ func newUserHandler(db *sql.DB) func(*gin.Context) {
 		username := c.PostForm("username")
 		email := c.PostForm("email")
 
-		stmt, err := db.Prepare("insert into user (first_name, last_name, username, email) values(?,?,?,?);")
-		if err != nil {
-			log.Println(err)
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-
-		_, err = stmt.Exec(first_name, last_name, username, email)
+		_, err := stmt.Exec(first_name, last_name, username, email)
 		if err != nil {
 			log.Println(err)
 			c.AbortWithStatus(http.StatusInternalServerError)
@@ -99,7 +92,6 @@ func newUserHandler(db *sql.DB) func(*gin.Context) {
 		buffer.WriteString(first_name)
 		buffer.WriteString(" ")
 		buffer.WriteString(last_name)
-		defer stmt.Close()
 		name := buffer.String()
 		c.JSON(http.StatusOK, gin.H{
 			"message": fmt.Sprintf(" %s successfully created", name),
@@ -107,7 +99,7 @@ func newUserHandler(db *sql.DB) func(*gin.Context) {
 	}
 }
 
-func updateUserHandler(db *sql.DB) func(*gin.Context) {
+func updateUserHandler(stmt *sql.Stmt) func(*gin.Context) {
 	return func(c *gin.Context) {
 		var buffer bytes.Buffer
 		id := c.Query("id")
@@ -116,14 +108,7 @@ func updateUserHandler(db *sql.DB) func(*gin.Context) {
 		username := c.PostForm("username")
 		email := c.PostForm("email")
 
-		stmt, err := db.Prepare("update user set first_name= ?, last_name= ?, username=?, email=? where id= ?;")
-		if err != nil {
-			log.Println(err)
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-
-		_, err = stmt.Exec(first_name, last_name, username, email, id)
+		_, err := stmt.Exec(first_name, last_name, username, email, id)
 		if err != nil {
 			log.Println(err)
 			c.AbortWithStatus(http.StatusInternalServerError)
@@ -134,7 +119,6 @@ func updateUserHandler(db *sql.DB) func(*gin.Context) {
 		buffer.WriteString(first_name)
 		buffer.WriteString(" ")
 		buffer.WriteString(last_name)
-		defer stmt.Close()
 		name := buffer.String()
 		c.JSON(http.StatusOK, gin.H{
 			"message": fmt.Sprintf("Successfully updated to %s", name),
@@ -142,18 +126,11 @@ func updateUserHandler(db *sql.DB) func(*gin.Context) {
 	}
 }
 
-func deleteUserHandler(db *sql.DB) func(*gin.Context) {
+func deleteUserHandler(stmt *sql.Stmt) func(*gin.Context) {
 	return func(c *gin.Context) {
 		id := c.Query("id")
 
-		stmt, err := db.Prepare("delete from user where id= ?;")
-		if err != nil {
-			log.Println(err)
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-
-		_, err = stmt.Exec(id)
+		_, err := stmt.Exec(id)
 		if err != nil {
 			log.Println(err)
 			c.AbortWithStatus(http.StatusInternalServerError)
@@ -187,6 +164,26 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// Reuse prepared statements in order to speed up code execution in the database
+	newUserStmt, err := db.Prepare("insert into user (first_name, last_name, username, email) values(?,?,?,?)")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer newUserStmt.Close()
+
+	updateUserStmt, err := db.Prepare("update user set first_name= ?, last_name= ?, username=?, email=? where id= ?")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer updateUserStmt.Close()
+
+	deleteUserStmt, err := db.Prepare("delete from user where id= ?")
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+	defer deleteUserStmt.Close()
+
 	router := gin.Default()
 	// Add API handlers here
 
@@ -197,13 +194,13 @@ func main() {
 	router.GET("/users", usersHandler(db))
 
 	// POST new user details
-	router.POST("/user", newUserHandler(db))
+	router.POST("/user", newUserHandler(newUserStmt))
 
 	// PUT - update a user details
-	router.PUT("/user", updateUserHandler(db))
+	router.PUT("/user", updateUserHandler(updateUserStmt))
 
 	// Delete resources
-	router.DELETE("/user", deleteUserHandler(db))
+	router.DELETE("/user", deleteUserHandler(deleteUserStmt))
 
 	log.Fatalln(router.Run(":3000"))
 }
