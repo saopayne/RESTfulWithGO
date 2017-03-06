@@ -26,19 +26,18 @@ func userHandler(db *sql.DB) func(*gin.Context) {
 			result gin.H
 		)
 		id := c.Param("id")
+
 		row := db.QueryRow("select id, first_name, last_name, username, email from user where id = ?;", id)
 		err := row.Scan(&user.Id, &user.First_Name, &user.Last_Name, &user.Username, &user.Email)
 		if err != nil {
-			// If no results send null
-			result = gin.H{
-				"result": nil,
-				"count":  0,
-			}
-		} else {
-			result = gin.H{
-				"result": user,
-				"count":  1,
-			}
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		result = gin.H{
+			"result": user,
+			"count":  1,
 		}
 		c.JSON(http.StatusOK, result)
 	}
@@ -50,18 +49,24 @@ func usersHandler(db *sql.DB) func(*gin.Context) {
 			user  User
 			users []User
 		)
+
 		rows, err := db.Query("select id, first_name, last_name, username, email from user;")
 		if err != nil {
-			fmt.Print(err.Error())
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
 		}
+		defer rows.Close()
+
 		for rows.Next() {
 			err = rows.Scan(&user.Id, &user.First_Name, &user.Last_Name, &user.Username, &user.Email)
 			users = append(users, user)
 			if err != nil {
-				fmt.Print(err.Error())
+				log.Println(err)
+				c.AbortWithStatus(http.StatusInternalServerError)
+				return
 			}
 		}
-		defer rows.Close()
 		c.JSON(http.StatusOK, gin.H{
 			"result": users,
 			"count":  len(users),
@@ -76,14 +81,19 @@ func newUserHandler(db *sql.DB) func(*gin.Context) {
 		last_name := c.PostForm("last_name")
 		username := c.PostForm("username")
 		email := c.PostForm("email")
+
 		stmt, err := db.Prepare("insert into user (first_name, last_name, username, email) values(?,?,?,?);")
 		if err != nil {
-			fmt.Print(err.Error())
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
 		}
-		_, err = stmt.Exec(first_name, last_name, username, email)
 
+		_, err = stmt.Exec(first_name, last_name, username, email)
 		if err != nil {
-			fmt.Print(err.Error())
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
 		}
 
 		//Appending strings via buffer , fast enough?
@@ -106,13 +116,19 @@ func updateUserHandler(db *sql.DB) func(*gin.Context) {
 		last_name := c.PostForm("last_name")
 		username := c.PostForm("username")
 		email := c.PostForm("email")
+
 		stmt, err := db.Prepare("update user set first_name= ?, last_name= ?, username=?, email=? where id= ?;")
 		if err != nil {
-			fmt.Print(err.Error())
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
 		}
+
 		_, err = stmt.Exec(first_name, last_name, username, email, id)
 		if err != nil {
-			fmt.Print(err.Error())
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
 		}
 
 		// Fastest way to append strings
@@ -130,14 +146,21 @@ func updateUserHandler(db *sql.DB) func(*gin.Context) {
 func deleteUserHandler(db *sql.DB) func(*gin.Context) {
 	return func(c *gin.Context) {
 		id := c.Query("id")
+
 		stmt, err := db.Prepare("delete from user where id= ?;")
 		if err != nil {
-			fmt.Print(err.Error())
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
 		}
+
 		_, err = stmt.Exec(id)
 		if err != nil {
-			fmt.Print(err.Error())
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
 		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"message": fmt.Sprintf("Successfully deleted user: %s", id),
 		})
@@ -183,5 +206,5 @@ func main() {
 	// Delete resources
 	router.DELETE("/user", deleteUserHandler(db))
 
-	router.Run(":3000")
+	log.Fatalln(router.Run(":3000"))
 }
