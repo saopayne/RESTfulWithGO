@@ -134,7 +134,7 @@ func deleteUserHandler(stmt *sql.Stmt) func(*gin.Context) {
 func main() {
 	//xxxx = mysql username
 	//yyyy = mysql password
-	db, err := sql.Open("mysql", "root:saopayne@tcp(127.0.0.1:3306)/gosample")
+	db, err := sql.Open("mysql", "xxxx:yyyy@tcp(127.0.0.1:3306)/gosample")
 	if err != nil {
 		log.Fatalln(err)
 	}
